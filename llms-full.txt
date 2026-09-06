@@ -1,0 +1,1303 @@
+# EditalMD — referência completa da API
+
+> Gerada do catálogo em https://editalmd.com · build `2d690e87`
+> 33 endpoints · 24 estruturas
+> Índice curto: https://editalmd.com/llms.txt · Spec: https://editalmd.com/openapi.json · MCP: https://editalmd.com/mcp
+
+> Referência completa. Acervo do PNCP já extraído; o Worker é proxy da origem no c3.
+>
+> Pagamento: x402 por requisição **ou** crédito pré-pago (`POST /api/credito?usd=10` → token `cred_…` em `Authorization: Bearer`, válido em todos os produtos da casa).
+
+## Como ler
+
+- Cada endpoint traz caminho, auth, parâmetros, corpo, estrutura da resposta, erros e uma chamada que roda.
+- `Pagina<Canal>` é referência: os campos estão em **Estruturas**, no fim, uma vez só.
+- `(opcional)` num campo quer dizer que ele pode não vir; `(pode ser null)` quer dizer que vem com valor nulo.
+- Fatie o que precisa: `https://editalmd.com/llms-full.txt?prefix=/api/` devolve só aquele ramo.
+
+## Autenticação
+
+- `none` — Público. Agente não se cadastra: quando a rota cobra, cobra por requisição (x402) ou desconta de crédito pré-pago.
+- `credito` — Token de crédito em `Authorization: Bearer cred_…` (ou header `X-Credito`). Não é conta: é portador de saldo.
+- `owner` — Token de dono `edm_…` em `Authorization: Bearer`. `POST /api/dono` cria um (sem cadastro); só o hash fica guardado e o token é mostrado uma vez. Recurso de outro dono responde 404.
+
+## Endpoints
+
+## Descoberta
+
+### `GET /api/`
+
+Índice auto-descrito: rotas, regime de cobrança, preço e MCP.
+
+- **URL:** `https://editalmd.com/api/`
+- **Auth:** `none` — Público. Agente não se cadastra: quando a rota cobra, cobra por requisição (x402) ou desconta de crédito pré-pago.
+
+**Resposta `200`**
+
+- `name` (string) — Nome do produto.
+- `description` (string) — O que o produto faz.
+- `build` (string) — Commit publicado.
+- `base_url` (string) — Origem em que esta API está servindo.
+- `docs` (object) — Links para llms.txt, OpenAPI, MCP e a UI.
+- `regime` (string) — A regra de cobrança por recência, em uma frase.
+- `gratis_acima_de_dias` (int) — Idade de publicação a partir da qual o documento é amostra grátis.
+- `pago` (object) — Rota paga e o preço por requisição.
+- `endpoints` (object[]) — Catálogo de endpoints.
+- `mcp_tools` (string[]) — Tools do MCP.
+- `cota` (object) — O que é grátis, o que é pago e como pagar.
+
+**Exemplo**
+
+```sh
+curl -s https://editalmd.com/api/
+```
+
+### `GET /api/health`
+
+Saúde da origem e tamanho do acervo.
+
+- **URL:** `https://editalmd.com/api/health`
+- **Auth:** `none` — Público. Agente não se cadastra: quando a rota cobra, cobra por requisição (x402) ou desconta de crédito pré-pago.
+
+**Resposta `200`**
+
+Estrutura: `Saude`.
+
+- `ok` (bool) — `true` quando a origem respondeu.
+- `acervo` (Acervo) — Números do acervo. → ver `Acervo` em **Estruturas**.
+- `preco_markdown_usd` (string) — Preço vigente do documento recente.
+- `gratis_acima_de_dias` (int) — Idade a partir da qual o documento é amostra grátis.
+
+**Erros**
+
+- `503` — Origem indisponível.
+
+**Exemplo**
+
+```sh
+curl -s https://editalmd.com/api/health
+```
+
+### `POST /mcp`
+
+MCP Streamable HTTP — as tools deste catálogo, despachadas neste mesmo Worker.
+
+- **URL:** `https://editalmd.com/mcp`
+- **Auth:** `none` — Público. Agente não se cadastra: quando a rota cobra, cobra por requisição (x402) ou desconta de crédito pré-pago.
+
+**Resposta `200`**
+
+JSON-RPC 2.0 (`initialize`, `tools/list`, `tools/call`).
+
+**Exemplo**
+
+```sh
+curl -s -XPOST https://editalmd.com/mcp -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+### `GET /okf/:arquivo`
+
+Bundle OKF (Open Knowledge Format v0.1): markdown com frontmatter para o agente ler o produto inteiro sem parsear HTML.
+
+- **URL:** `https://editalmd.com/okf/:arquivo`
+- **Auth:** `none` — Público. Agente não se cadastra: quando a rota cobra, cobra por requisição (x402) ou desconta de crédito pré-pago.
+
+**Parâmetros de caminho**
+
+- `arquivo` (string, obrigatório) — `index.md`, `sobre.md`, `api.md` ou `faq.md`. Ex.: `index.md`.
+
+**Resposta `200`**
+
+`text/markdown`. Comece por `/okf/index.md`, que lista o bundle.
+
+**Erros**
+
+- `404` — Arquivo fora do bundle.
+
+**Exemplo**
+
+```sh
+curl -s https://editalmd.com/okf/index.md
+```
+
+### `GET /.well-known/:arquivo`
+
+Descoberta de máquina antes da home: `api-catalog` (RFC 9727, linkset com a API e o MCP), `security.txt` (RFC 9116) e `mcp-registry-auth` (chave do registro oficial de MCP).
+
+- **URL:** `https://editalmd.com/.well-known/:arquivo`
+- **Auth:** `none` — Público. Agente não se cadastra: quando a rota cobra, cobra por requisição (x402) ou desconta de crédito pré-pago.
+
+**Parâmetros de caminho**
+
+- `arquivo` (string, obrigatório) — `api-catalog`, `security.txt`, `mcp-registry-auth` ou `apis.json`. Ex.: `api-catalog`.
+
+**Resposta `200`**
+
+`application/linkset+json` no api-catalog; `text/plain` nos outros dois.
+
+**Erros**
+
+- `404` — Nome fora dos quatro publicados.
+
+**Exemplo**
+
+```sh
+curl -s https://editalmd.com/.well-known/api-catalog
+```
+
+### `GET /apis.json`
+
+APIs.json (apisjson.org, 0.19): o índice que o APIs.io colhe — a API, o MCP, OpenAPI, guia e bundle OKF num arquivo só. Também em `/.well-known/apis.json`.
+
+- **URL:** `https://editalmd.com/apis.json`
+- **Auth:** `none` — Público. Agente não se cadastra: quando a rota cobra, cobra por requisição (x402) ou desconta de crédito pré-pago.
+
+**Resposta `200`**
+
+`application/json` no formato APIs.json 0.19: `apis[]` com `baseURL`, `humanURL` e `properties[]`.
+
+**Exemplo**
+
+```sh
+curl -s https://editalmd.com/apis.json
+```
+
+### `GET /feed.xml`
+
+RSS 2.0 das compras publicadas mais recentemente no acervo.
+
+- **URL:** `https://editalmd.com/feed.xml`
+- **Auth:** `none` — Público. Agente não se cadastra: quando a rota cobra, cobra por requisição (x402) ou desconta de crédito pré-pago.
+
+**Resposta `200`**
+
+`application/rss+xml`.
+
+**Exemplo**
+
+```sh
+curl -s https://editalmd.com/feed.xml
+```
+
+### `GET /feed.json`
+
+JSON Feed 1.1 das compras publicadas mais recentemente — o mesmo stream do RSS.
+
+- **URL:** `https://editalmd.com/feed.json`
+- **Auth:** `none` — Público. Agente não se cadastra: quando a rota cobra, cobra por requisição (x402) ou desconta de crédito pré-pago.
+
+**Resposta `200`**
+
+`application/feed+json`.
+
+**Exemplo**
+
+```sh
+curl -s https://editalmd.com/feed.json
+```
+
+## Acervo
+
+### `GET /api/busca`
+
+Busca compras do PNCP por termo. Sempre grátis — é a descoberta.
+
+- **URL:** `https://editalmd.com/api/busca`
+- **Auth:** `none` — Público. Agente não se cadastra: quando a rota cobra, cobra por requisição (x402) ou desconta de crédito pré-pago.
+
+**Query**
+
+- `q` (string, obrigatório) — Termo de busca; mínimo 3 letras.
+- `uf` (string) — Filtra por sigla de UF.
+- `abertas` (string) — `1` devolve só compras com prazo de proposta ainda por vencer. Valores: `1`.
+- `limite` (int) — 1 a 50 (padrão 20).
+
+**Resposta `200`**
+
+Estrutura: `Busca`.
+
+- `itens` (Compra[]) — Compras que casaram com o termo. → ver `Compra` em **Estruturas**.
+- `preco_markdown_usd` (string) — Preço do documento recente.
+- `gratis_acima_de_dias` (int) — Janela de amostra grátis, em dias.
+- `pago` (bool) — Sempre `false`: buscar não custa.
+
+**Erros**
+
+- `400` — Termo com menos de 3 letras.
+- `502` — Origem indisponível.
+
+**Exemplo**
+
+```sh
+curl -s 'https://editalmd.com/api/busca?q=uniforme%20escolar&uf=GO'
+```
+
+### `GET /api/cnaes`
+
+A lista de CNAE como o alerta por CNPJ a lê: descrição oficial (IBGE), família e termos do dicionário, e fornecedores ativos no SICAF. Grátis.
+
+Sem `q`, o ranking dos CNAEs com mais fornecedores ativos no SICAF (dados abertos do compras.gov.br) — é a lista de quem vende para o governo, gravada e re-medida pelo cron diário. Com `q`, busca por prefixo do código (`1412`, `1412-6/01`) ou por palavra da descrição. `familia`/`termos` nulos dizem que o CNAE ainda não está no dicionário: um alerta por CNPJ não o usa.
+
+- **URL:** `https://editalmd.com/api/cnaes`
+- **Auth:** `none` — Público. Agente não se cadastra: quando a rota cobra, cobra por requisição (x402) ou desconta de crédito pré-pago.
+
+**Query**
+
+- `q` (string) — Prefixo do código (2 a 7 dígitos) ou palavra da descrição (2+ letras).
+- `limite` (int) — 1 a 100 (padrão 20), por fornecedores no SICAF, decrescente.
+
+**Resposta `200`**
+
+- `itens` (Cnae[]) — Os CNAEs que casam, os com mais fornecedores primeiro. → ver `Cnae` em **Estruturas**.
+- `limite` (int) — Teto aplicado.
+- `q` (string, pode ser null) — O filtro aplicado.
+- `dicionario` (object) — `familias`, `cnaes_mapeados` e `medido_em` (quando a cobertura no acervo foi medida).
+- `fontes` (object) — De onde vêm `descricao` (IBGE) e `fornecedores_sicaf` (compras.gov.br).
+
+**Erros**
+
+- `400` — `q` com menos de 2 caracteres.
+- `503` — Banco indisponível.
+
+**Exemplo**
+
+```sh
+curl -s 'https://editalmd.com/api/cnaes?q=1412'
+```
+
+### `GET /api/compra/:id`
+
+Ficha da compra com prazos de proposta e impugnação, documentos e o regime de cobrança de cada um.
+
+- **URL:** `https://editalmd.com/api/compra/:id`
+- **Auth:** `none` — Público. Agente não se cadastra: quando a rota cobra, cobra por requisição (x402) ou desconta de crédito pré-pago.
+
+**Parâmetros de caminho**
+
+- `id` (string, obrigatório) — Identificador da compra, vindo da busca. Ex.: `42`.
+
+**Resposta `200`**
+
+Estrutura: `FichaCompra`.
+
+- `compra` (Compra) — A compra. → ver `Compra` em **Estruturas**.
+- `documentos` (Documento[]) — Documentos com texto extraído. → ver `Documento` em **Estruturas**.
+- `regime` (Regime) — Grátis ou pago, e por quê. → ver `Regime` em **Estruturas**.
+- `prazos` (Prazos) — Proposta e impugnação da compra — o mesmo objeto de `compra.prazos`. → ver `Prazos` em **Estruturas**.
+
+**Erros**
+
+- `404` — Compra não encontrada.
+- `502` — Origem indisponível.
+
+**Exemplo**
+
+```sh
+curl -s https://editalmd.com/api/compra/42
+```
+
+### `GET /api/documento/:id/markdown`
+
+Documento em markdown com front-matter de procedência e hash. Grátis se a compra tem 30+ dias; pago se é recente.
+
+- **URL:** `https://editalmd.com/api/documento/:id/markdown`
+- **Auth:** `none` — Público. Agente não se cadastra: quando a rota cobra, cobra por requisição (x402) ou desconta de crédito pré-pago.
+
+**Parâmetros de caminho**
+
+- `id` (string, obrigatório) — Identificador do documento, vindo da ficha da compra. Ex.: `123`.
+
+**Resposta `200`**
+
+`text/markdown`. Headers: `x-editalmd-regime`, `x-editalmd-recibo`, `x-editalmd-sha256`.
+
+**Erros**
+
+- `402` — Documento recente sem pagamento — o corpo traz `accepts[]` do x402 e o caminho da recarga de crédito.
+- `404` — Documento não encontrado (não cobra).
+- `409` — Documento ainda não baixado para o acervo: não há o que extrair (não cobra).
+- `502` — Pago e sem entrega: o corpo traz o número do recibo.
+
+**Exemplo**
+
+```sh
+curl -s https://editalmd.com/api/documento/123/markdown
+```
+
+### `POST /api/documento/:id/habilitacao`
+
+Lista de habilitação do edital: cada exigência com o trecho literal de onde saiu. Pago por documento; mesmo texto não paga de novo.
+
+Extraída por modelo de linguagem na origem e ancorada no texto: item cujo trecho não existe literalmente no edital é descartado (`descartados` conta). Cobre só o lado do edital — o que a empresa tem não entra. `impugnacao_texto` e `proposta_texto` são o que o próprio edital diz, copiado.
+
+- **URL:** `https://editalmd.com/api/documento/:id/habilitacao`
+- **Auth:** `none` — Público. Agente não se cadastra: quando a rota cobra, cobra por requisição (x402) ou desconta de crédito pré-pago.
+
+**Parâmetros de caminho**
+
+- `id` (string, obrigatório) — Identificador do documento, vindo da ficha da compra. Ex.: `123`.
+
+**Resposta `200`**
+
+Estrutura: `Habilitacao`.
+
+- `documento_id` (int) — Documento lido.
+- `compra_id` (int, pode ser null) — Compra do documento.
+- `sha256_texto` (string) — Hash do texto lido — a chave do cache.
+- `modelo` (string, pode ser null) — Modelo que extraiu.
+- `cache` (bool) — `true` quando saiu do cache, sem cobrança.
+- `recibo` (string, pode ser null) — Recibo da entrega paga; nulo no cache.
+- `recibo_url` (string, pode ser null) — Onde consultar o recibo.
+- `aviso` (string) — Lembrete de conferir no edital.
+- `habilitacao` (ListaHabilitacao) — As exigências por família e o que o edital diz de prazo. → ver `ListaHabilitacao` em **Estruturas**.
+
+**Erros**
+
+- `402` — Compra recente sem pagamento — `accepts[]` do x402 e o caminho da recarga de crédito. Compra com 30+ dias e cache (mesmo `sha256_texto`) não cobram.
+- `404` — Documento não encontrado (não cobra).
+- `409` — Sem texto e sem binário no acervo, ou texto curto demais (não cobra).
+- `502` — Pago e sem entrega: o corpo traz o número do recibo.
+- `503` — Extração por modelo desligada na origem.
+
+**Exemplo**
+
+```sh
+curl -s -XPOST https://editalmd.com/api/documento/123/habilitacao
+```
+
+## Acompanhar
+
+### `POST /api/dono`
+
+Cria o token de dono que abre alertas e vigias, e o segredo que assina os webhooks. Sem cadastro.
+
+Teto por rede e por dia (`TETO_DONOS_REDE_DIA`), para a franquia grátis não virar infinita. O token é mostrado uma única vez e não tem recuperação; o `webhook_segredo` pode ser relido em `GET /api/dono`. Todo POST do webhook leva `webhook-id`, `webhook-timestamp` (segundos Unix) e `webhook-signature: v1,<base64>`: HMAC-SHA256 de `id.timestamp.corpo` com a chave do seu `whsec_…` (o base64 depois do prefixo). É o padrão Standard Webhooks — qualquer biblioteca dele confere; rejeite timestamp fora de 5 minutos. Depois de `POST /api/dono/segredo`, o anterior ainda assina por 24 h (duas partes `v1,` no cabeçalho).
+
+- **URL:** `https://editalmd.com/api/dono`
+- **Auth:** `none` — Público. Agente não se cadastra: quando a rota cobra, cobra por requisição (x402) ou desconta de crédito pré-pago.
+
+**Resposta `200`**
+
+Estrutura: `Dono`.
+
+- `token` (string) — `edm_…` — guarde; não é mostrado de novo nem recuperável.
+- `aviso` (string) — Lembrete de guardar o token e como usá-lo.
+- `webhook_segredo` (string) — `whsec_…` — assina todo POST de webhook (Standard Webhooks). Releia em `GET /api/dono`; rotacione em `POST /api/dono/segredo`.
+- `webhook_assinatura` (string) — Como conferir a assinatura, em uma linha.
+- `franquia` (object) — `alertas_gratis` e `vigias_gratis` incluídos.
+
+**Erros**
+
+- `429` — A rede já criou o teto de donos do dia.
+- `503` — Banco indisponível.
+
+**Exemplo**
+
+```sh
+curl -s -XPOST https://editalmd.com/api/dono
+```
+
+### `GET /api/dono`
+
+O estado do dono: e-mail confirmado, franquia e o segredo que assina os webhooks.
+
+Todo POST do webhook leva `webhook-id`, `webhook-timestamp` (segundos Unix) e `webhook-signature: v1,<base64>`: HMAC-SHA256 de `id.timestamp.corpo` com a chave do seu `whsec_…` (o base64 depois do prefixo). É o padrão Standard Webhooks — qualquer biblioteca dele confere; rejeite timestamp fora de 5 minutos. Depois de `POST /api/dono/segredo`, o anterior ainda assina por 24 h (duas partes `v1,` no cabeçalho).
+
+- **URL:** `https://editalmd.com/api/dono`
+- **Auth:** `owner` — Token de dono `edm_…` em `Authorization: Bearer`. `POST /api/dono` cria um (sem cadastro); só o hash fica guardado e o token é mostrado uma vez. Recurso de outro dono responde 404.
+
+**Resposta `200`**
+
+- `email_confirmado` (bool) — Se há e-mail confirmado para os alertas por e-mail.
+- `email_confirmado_em` (string, pode ser null) — Instante da confirmação em ISO 8601; nulo sem e-mail.
+- `webhook_segredo` (string) — `whsec_…` — a chave que assina cada POST de webhook.
+- `assinatura` (string) — Como conferir a assinatura, em uma linha.
+- `franquia` (object) — `alertas_gratis` e `vigias_gratis` incluídos.
+
+**Erros**
+
+- `401` — Sem token de dono, ou token desconhecido.
+
+**Exemplo**
+
+```sh
+curl -s https://editalmd.com/api/dono -H "Authorization: Bearer $EDM"
+```
+
+### `POST /api/dono/segredo`
+
+Rotaciona o segredo do webhook. O anterior ainda assina por 24 h, para trocar sem janela de falha.
+
+Durante as 24 h o cabeçalho `webhook-signature` traz duas partes `v1,…`: uma com o novo, outra com o anterior. Basta o receptor aceitar qualquer uma que bata.
+
+- **URL:** `https://editalmd.com/api/dono/segredo`
+- **Auth:** `owner` — Token de dono `edm_…` em `Authorization: Bearer`. `POST /api/dono` cria um (sem cadastro); só o hash fica guardado e o token é mostrado uma vez. Recurso de outro dono responde 404.
+
+**Resposta `200`**
+
+- `webhook_segredo` (string) — O novo `whsec_…`.
+- `anterior_valido_ate` (string) — Até quando o segredo anterior ainda assina (ISO 8601).
+
+**Erros**
+
+- `401` — Sem token de dono, ou token desconhecido.
+
+**Exemplo**
+
+```sh
+curl -s -XPOST https://editalmd.com/api/dono/segredo -H "Authorization: Bearer $EDM"
+```
+
+### `POST /api/dono/confirmar-email`
+
+Confirma o e-mail de destino dos alertas com o código de 6 dígitos recebido.
+
+- **URL:** `https://editalmd.com/api/dono/confirmar-email`
+- **Auth:** `owner` — Token de dono `edm_…` em `Authorization: Bearer`. `POST /api/dono` cria um (sem cadastro); só o hash fica guardado e o token é mostrado uma vez. Recurso de outro dono responde 404.
+
+**Corpo** (`application/json`)
+
+- `codigo` (string, obrigatório) — Os 6 dígitos que chegaram no e-mail; vale 30 minutos.
+
+**Exemplo de corpo**
+
+```json
+{
+  "codigo": "123456"
+}
+```
+
+**Resposta `200`**
+
+- `ok` (bool) — `true` quando o e-mail passou a valer.
+- `email_confirmado_em` (string) — Instante da confirmação em ISO 8601.
+
+**Erros**
+
+- `400` — Código inválido, expirado ou sem confirmação pendente.
+- `401` — Sem token de dono, ou token desconhecido.
+- `429` — Cinco tentativas erradas: peça outro código.
+
+**Exemplo**
+
+```sh
+curl -s -XPOST https://editalmd.com/api/dono/confirmar-email -H "Authorization: Bearer $EDM" -H 'content-type: application/json' -d '{"codigo":"123456"}'
+```
+
+### `POST /api/alertas`
+
+Cria alertas de compra nova: por termos do objeto e UF, ou pelo CNPJ da empresa (um alerta por família de atividade), entregues por pull, webhook ou e-mail.
+
+Dois modos. Por `termos`: espaço exige todas as palavras, `|` aceita qualquer uma do grupo (`uniforme|fardamento escolar`). Por `cnpj`: a ficha da empresa (Radar CNPJ) dá os CNAEs, o dicionário (`GET /api/cnaes`) transforma cada CNAE numa família de termos e sai um alerta por família distinta, principal primeiro, até `max_familias`; CNAE fora do dicionário não vira alerta e é listado em `empresa.cnaes` com `familia: null`. O primeiro alerta ativo é grátis (`FRANQUIA_ALERTAS`); os seguintes custam `PRECO_ALERTA` por 30 dias cada — no modo CNPJ, numa cobrança só (N × preço), por x402 ou crédito. O cron confere a cada 30 minutos. Canal e-mail exige confirmação do destinatário e só existe com `EMAIL_ALERTAS=1`.
+
+- **URL:** `https://editalmd.com/api/alertas`
+- **Auth:** `owner` — Token de dono `edm_…` em `Authorization: Bearer`. `POST /api/dono` cria um (sem cadastro); só o hash fica guardado e o token é mostrado uma vez. Recurso de outro dono responde 404.
+
+**Corpo** (`application/json`)
+
+- `termos` (string) — Palavras do objeto da compra (3 a 200 letras); espaço = todas, `|` = qualquer uma do grupo. Obrigatório sem `cnpj`; ignorado com `cnpj`.
+- `cnpj` (string) — CNPJ da empresa (14 dígitos, com ou sem pontuação): os termos saem das atividades (CNAE) dela, um alerta por família.
+- `max_familias` (int) — Só com `cnpj`: quantas famílias viram alerta, principal primeiro (1 a 8). Padrão: `8`.
+- `uf` (string) — Sigla da UF para restringir; sem UF vale o Brasil inteiro.
+- `canal` (string) — `pull` (só a API), `webhook` (POST na sua URL https) ou `email`. Padrão: `pull`. Valores: `pull`, `webhook`, `email`.
+- `destino` (string) — URL https pública (webhook) ou e-mail (email). Ignorado no pull.
+
+**Exemplo de corpo**
+
+```json
+{
+  "termos": "uniforme|fardamento escolar",
+  "uf": "GO",
+  "canal": "pull"
+}
+```
+
+**Resposta `200`**
+
+- `alerta` (Alerta, opcional) — O alerta criado (modo termos). → ver `Alerta` em **Estruturas**.
+- `alertas` (Alerta[], opcional) — Os alertas criados, um por família (modo CNPJ). → ver `Alerta` em **Estruturas**.
+- `empresa` (Empresa, opcional) — A ficha resumida e cada CNAE com a família que o acionou (modo CNPJ). → ver `Empresa` em **Estruturas**.
+- `nao_criados` (FamiliaNaoCriada[], opcional) — Famílias que ficaram de fora por `max_familias` (modo CNPJ). → ver `FamiliaNaoCriada` em **Estruturas**.
+- `pagamento` (object) — `via` (franquia, credito ou x402), `preco_usd`, `pago_ate` e, no modo CNPJ, `alertas_pagos` e `preco_unitario_usd`.
+- `email_confirmacao` (string, opcional) — `confirmado`, `pendente` ou `falhou_envio`, só no canal e-mail.
+
+**Erros**
+
+- `400` — Termos, CNPJ, UF, canal ou destino inválidos.
+- `401` — Sem token de dono, ou token desconhecido.
+- `402` — Acima da franquia sem pagamento — `accepts[]` do x402 e o caminho do crédito.
+- `404` — CNPJ não existe na base da Receita.
+- `422` — CNPJ sem nenhuma atividade no dicionário: crie por termos (a resposta traz os CNAEs).
+- `503` — Canal e-mail desligado, ou a consulta ao CNPJ indisponível agora (`retry_after`).
+
+**Exemplo**
+
+```sh
+curl -s -XPOST https://editalmd.com/api/alertas -H "Authorization: Bearer $EDM" -H 'content-type: application/json' -d '{"cnpj":"00.394.460/0001-41","uf":"GO","canal":"pull"}'
+```
+
+### `GET /api/alertas`
+
+Lista os alertas deste dono, os mais novos primeiro.
+
+- **URL:** `https://editalmd.com/api/alertas`
+- **Auth:** `owner` — Token de dono `edm_…` em `Authorization: Bearer`. `POST /api/dono` cria um (sem cadastro); só o hash fica guardado e o token é mostrado uma vez. Recurso de outro dono responde 404.
+
+**Resposta `200`**
+
+- `itens` (Alerta[]) — Até 50 alertas do dono. → ver `Alerta` em **Estruturas**.
+- `franquia_alertas` (int) — Quantos alertas ativos são grátis.
+
+**Erros**
+
+- `401` — Sem token de dono, ou token desconhecido.
+
+**Exemplo**
+
+```sh
+curl -s https://editalmd.com/api/alertas -H "Authorization: Bearer $EDM"
+```
+
+### `GET /api/alertas/:id`
+
+Um alerta do dono, com o cursor da última verificação do cron.
+
+- **URL:** `https://editalmd.com/api/alertas/:id`
+- **Auth:** `owner` — Token de dono `edm_…` em `Authorization: Bearer`. `POST /api/dono` cria um (sem cadastro); só o hash fica guardado e o token é mostrado uma vez. Recurso de outro dono responde 404.
+
+**Parâmetros de caminho**
+
+- `id` (string, obrigatório) — Identificador do alerta, devolvido na criação. Ex.: `9f3c…`.
+
+**Resposta `200`**
+
+- `alerta` (Alerta) — O alerta. → ver `Alerta` em **Estruturas**.
+
+**Erros**
+
+- `401` — Sem token de dono, ou token desconhecido.
+- `404` — Alerta inexistente ou de outro dono.
+
+**Exemplo**
+
+```sh
+curl -s https://editalmd.com/api/alertas/$ID -H "Authorization: Bearer $EDM"
+```
+
+### `GET /api/alertas/:id/compras`
+
+As compras que já casaram com o alerta — é o canal pull, e a prova do que foi entregue.
+
+- **URL:** `https://editalmd.com/api/alertas/:id/compras`
+- **Auth:** `owner` — Token de dono `edm_…` em `Authorization: Bearer`. `POST /api/dono` cria um (sem cadastro); só o hash fica guardado e o token é mostrado uma vez. Recurso de outro dono responde 404.
+
+**Parâmetros de caminho**
+
+- `id` (string, obrigatório) — Identificador do alerta. Ex.: `9f3c…`.
+
+**Query**
+
+- `limite` (int) — 1 a 100 (padrão 50), mais recentes primeiro.
+
+**Resposta `200`**
+
+- `alerta` (Alerta) — O alerta. → ver `Alerta` em **Estruturas**.
+- `itens` (AlertaCompra[]) — Compras casadas, com o status da entrega. → ver `AlertaCompra` em **Estruturas**.
+- `limite` (int) — Teto aplicado.
+
+**Erros**
+
+- `401` — Sem token de dono, ou token desconhecido.
+- `404` — Alerta inexistente ou de outro dono.
+
+**Exemplo**
+
+```sh
+curl -s "https://editalmd.com/api/alertas/$ID/compras?limite=20" -H "Authorization: Bearer $EDM"
+```
+
+### `PATCH /api/alertas/:id`
+
+Pausa, reativa ou muda termos, UF, canal e destino de um alerta.
+
+- **URL:** `https://editalmd.com/api/alertas/:id`
+- **Auth:** `owner` — Token de dono `edm_…` em `Authorization: Bearer`. `POST /api/dono` cria um (sem cadastro); só o hash fica guardado e o token é mostrado uma vez. Recurso de outro dono responde 404.
+
+**Parâmetros de caminho**
+
+- `id` (string, obrigatório) — Identificador do alerta. Ex.: `9f3c…`.
+
+**Corpo** (`application/json`)
+
+- `ativo` (bool) — `false` pausa sem apagar; `true` reativa.
+- `termos` (string) — Novos termos do objeto (3 a 200 letras; `|` = qualquer uma do grupo).
+- `uf` (string) — Nova UF; vazio tira a restrição.
+- `canal` (string) — Novo canal: `pull`, `webhook` ou `email`. Valores: `pull`, `webhook`, `email`.
+- `destino` (string) — Nova URL https ou novo e-mail, conforme o canal.
+
+**Exemplo de corpo**
+
+```json
+{
+  "ativo": false
+}
+```
+
+**Resposta `200`**
+
+- `alerta` (Alerta) — O alerta depois da mudança. → ver `Alerta` em **Estruturas**.
+- `email_confirmacao` (string, opcional) — Estado da confirmação, só no canal e-mail.
+
+**Erros**
+
+- `400` — Nada para mudar ou valor inválido.
+- `401` — Sem token de dono, ou token desconhecido.
+- `404` — Alerta inexistente ou de outro dono.
+- `503` — Canal e-mail desligado.
+
+**Exemplo**
+
+```sh
+curl -s -XPATCH https://editalmd.com/api/alertas/$ID -H "Authorization: Bearer $EDM" -H 'content-type: application/json' -d '{"ativo":false}'
+```
+
+### `DELETE /api/alertas/:id`
+
+Apaga o alerta e o histórico de compras casadas. Sem volta.
+
+- **URL:** `https://editalmd.com/api/alertas/:id`
+- **Auth:** `owner` — Token de dono `edm_…` em `Authorization: Bearer`. `POST /api/dono` cria um (sem cadastro); só o hash fica guardado e o token é mostrado uma vez. Recurso de outro dono responde 404.
+
+**Parâmetros de caminho**
+
+- `id` (string, obrigatório) — Identificador do alerta. Ex.: `9f3c…`.
+
+**Resposta `200`**
+
+204 sem corpo.
+
+**Erros**
+
+- `401` — Sem token de dono, ou token desconhecido.
+- `404` — Alerta inexistente ou de outro dono.
+
+**Exemplo**
+
+```sh
+curl -s -XDELETE https://editalmd.com/api/alertas/$ID -H "Authorization: Bearer $EDM"
+```
+
+### `POST /api/vigias`
+
+Vigia uma compra: fotografa agora e avisa quando mudar — documento novo, suspensão, prazo adiado, valor — e nos prazos.
+
+A primeira vigia ativa é grátis (`FRANQUIA_VIGIAS`); as seguintes custam `PRECO_VIGIA` até 30 dias após o encerramento. O cron reconfere a cada hora; compra que o acervo não revisita há mais de 3 dias é conferida direto no PNCP. Avisos `prazo_impugnacao` (no dia) e `prazo_proposta` (24 h antes) saem uma vez cada.
+
+- **URL:** `https://editalmd.com/api/vigias`
+- **Auth:** `owner` — Token de dono `edm_…` em `Authorization: Bearer`. `POST /api/dono` cria um (sem cadastro); só o hash fica guardado e o token é mostrado uma vez. Recurso de outro dono responde 404.
+
+**Corpo** (`application/json`)
+
+- `compra_id` (int, obrigatório) — Identificador da compra no acervo, vindo da busca.
+- `canal` (string) — `pull` (ler em `/eventos`), `webhook` ou `email`. Padrão: `pull`. Valores: `pull`, `webhook`, `email`.
+- `destino` (string) — URL https pública (webhook) ou e-mail confirmado (email).
+
+**Exemplo de corpo**
+
+```json
+{
+  "compra_id": 42,
+  "canal": "pull"
+}
+```
+
+**Resposta `200`**
+
+- `vigia` (Vigia) — A vigia criada. → ver `Vigia` em **Estruturas**.
+- `snapshot` (Snapshot) — A fotografia inicial da compra. → ver `Snapshot` em **Estruturas**.
+- `pagamento` (object) — `via` (franquia, credito ou x402), `preco_usd` e `pago_ate`.
+
+**Erros**
+
+- `400` — `compra_id`, canal ou destino inválidos.
+- `401` — Sem token de dono, ou token desconhecido.
+- `402` — Acima da franquia sem pagamento — `accepts[]` do x402 e o caminho do crédito.
+- `404` — Compra não encontrada no acervo.
+- `503` — Canal e-mail desligado, ou origem indisponível.
+
+**Exemplo**
+
+```sh
+curl -s -XPOST https://editalmd.com/api/vigias -H "Authorization: Bearer $EDM" -H 'content-type: application/json' -d '{"compra_id":42}'
+```
+
+### `GET /api/vigias`
+
+Lista as vigias deste dono, as mais novas primeiro.
+
+- **URL:** `https://editalmd.com/api/vigias`
+- **Auth:** `owner` — Token de dono `edm_…` em `Authorization: Bearer`. `POST /api/dono` cria um (sem cadastro); só o hash fica guardado e o token é mostrado uma vez. Recurso de outro dono responde 404.
+
+**Resposta `200`**
+
+- `itens` (Vigia[]) — Até 50 vigias do dono. → ver `Vigia` em **Estruturas**.
+- `franquia_vigias` (int) — Quantas vigias ativas são grátis.
+
+**Erros**
+
+- `401` — Sem token de dono, ou token desconhecido.
+
+**Exemplo**
+
+```sh
+curl -s https://editalmd.com/api/vigias -H "Authorization: Bearer $EDM"
+```
+
+### `GET /api/vigias/:id`
+
+Uma vigia do dono com a fotografia mais recente da compra.
+
+- **URL:** `https://editalmd.com/api/vigias/:id`
+- **Auth:** `owner` — Token de dono `edm_…` em `Authorization: Bearer`. `POST /api/dono` cria um (sem cadastro); só o hash fica guardado e o token é mostrado uma vez. Recurso de outro dono responde 404.
+
+**Parâmetros de caminho**
+
+- `id` (string, obrigatório) — Identificador da vigia, devolvido na criação. Ex.: `2b7e…`.
+
+**Resposta `200`**
+
+- `vigia` (Vigia) — A vigia. → ver `Vigia` em **Estruturas**.
+- `snapshot` (Snapshot) — O que o cron viu por último. → ver `Snapshot` em **Estruturas**.
+
+**Erros**
+
+- `401` — Sem token de dono, ou token desconhecido.
+- `404` — Vigia inexistente ou de outro dono.
+
+**Exemplo**
+
+```sh
+curl -s https://editalmd.com/api/vigias/$ID -H "Authorization: Bearer $EDM"
+```
+
+### `GET /api/vigias/:id/eventos`
+
+O que mudou na compra vigiada, evento a evento — é a série temporal e o canal pull.
+
+- **URL:** `https://editalmd.com/api/vigias/:id/eventos`
+- **Auth:** `owner` — Token de dono `edm_…` em `Authorization: Bearer`. `POST /api/dono` cria um (sem cadastro); só o hash fica guardado e o token é mostrado uma vez. Recurso de outro dono responde 404.
+
+**Parâmetros de caminho**
+
+- `id` (string, obrigatório) — Identificador da vigia. Ex.: `2b7e…`.
+
+**Query**
+
+- `limite` (int) — 1 a 100 (padrão 50), mais recentes primeiro.
+
+**Resposta `200`**
+
+- `vigia` (Vigia) — A vigia. → ver `Vigia` em **Estruturas**.
+- `snapshot` (Snapshot) — A fotografia atual. → ver `Snapshot` em **Estruturas**.
+- `itens` (Evento[]) — Eventos registrados. → ver `Evento` em **Estruturas**.
+- `limite` (int) — Teto aplicado.
+
+**Erros**
+
+- `401` — Sem token de dono, ou token desconhecido.
+- `404` — Vigia inexistente ou de outro dono.
+
+**Exemplo**
+
+```sh
+curl -s "https://editalmd.com/api/vigias/$ID/eventos?limite=20" -H "Authorization: Bearer $EDM"
+```
+
+### `DELETE /api/vigias/:id`
+
+Apaga a vigia e seus eventos. Sem volta.
+
+- **URL:** `https://editalmd.com/api/vigias/:id`
+- **Auth:** `owner` — Token de dono `edm_…` em `Authorization: Bearer`. `POST /api/dono` cria um (sem cadastro); só o hash fica guardado e o token é mostrado uma vez. Recurso de outro dono responde 404.
+
+**Parâmetros de caminho**
+
+- `id` (string, obrigatório) — Identificador da vigia. Ex.: `2b7e…`.
+
+**Resposta `200`**
+
+204 sem corpo.
+
+**Erros**
+
+- `401` — Sem token de dono, ou token desconhecido.
+- `404` — Vigia inexistente ou de outro dono.
+
+**Exemplo**
+
+```sh
+curl -s -XDELETE https://editalmd.com/api/vigias/$ID -H "Authorization: Bearer $EDM"
+```
+
+## Crédito
+
+### `POST /api/credito`
+
+Recarrega crédito pré-pago: paga uma vez com x402 e recebe o token que desconta em qualquer API da casa.
+
+- **URL:** `https://editalmd.com/api/credito`
+- **Auth:** `none` — Público. Agente não se cadastra: quando a rota cobra, cobra por requisição (x402) ou desconta de crédito pré-pago.
+
+**Query**
+
+- `usd` (int, obrigatório) — Pacote: 1, 5, 10 ou 25 dólares.
+
+**Resposta `200`**
+
+- `token` (string) — Token portador do saldo (`cred_…`). Mostrado UMA vez — não há como recuperá-lo.
+- `saldo_usd` (string) — Saldo creditado.
+- `guarde` (string) — Aviso de que o token é o portador do crédito.
+- `usar` (string) — Como apresentar o token nas rotas pagas.
+- `saldo_em` (string) — Onde consultar saldo e extrato.
+
+**Erros**
+
+- `400` — Pacote fora da lista (1, 5, 10 ou 25).
+- `402` — Sem pagamento — o corpo traz `accepts[]` do x402.
+
+**Exemplo**
+
+```sh
+curl -s -XPOST 'https://editalmd.com/api/credito?usd=10'
+```
+
+### `GET /api/credito`
+
+Saldo e extrato do crédito — as últimas movimentações, sem devolver o token.
+
+- **URL:** `https://editalmd.com/api/credito`
+- **Auth:** `credito` — Token de crédito em `Authorization: Bearer cred_…` (ou header `X-Credito`). Não é conta: é portador de saldo.
+
+**Resposta `200`**
+
+- `saldo_micros` (int) — Saldo em micro-dólares (1e-6 USD).
+- `saldo_usd` (string) — Saldo formatado.
+- `criado_em` (string) — Quando o crédito foi aberto.
+- `movimentos` (object[]) — Entradas e saídas recentes, com produto e recurso.
+
+**Erros**
+
+- `401` — Sem token ou token desconhecido.
+
+**Exemplo**
+
+```sh
+curl -s https://editalmd.com/api/credito -H 'Authorization: Bearer cred_…'
+```
+
+## Operação
+
+### `POST /api/visit`
+
+Ping da interface que incrementa a visita do dia no painel do operador. Agente não precisa chamar.
+
+Smoke não conta: `X-MM-Smoke`, User-Agent `mm-smoke` ou `smoke: true` no corpo entram como `counted: false`.
+
+- **URL:** `https://editalmd.com/api/visit`
+- **Auth:** `none` — Público. Agente não se cadastra: quando a rota cobra, cobra por requisição (x402) ou desconta de crédito pré-pago.
+
+**Corpo** (`application/json`)
+
+- `p` (string) — Caminho da página visitada, só para agrupar.
+- `smoke` (bool) — `true` marca a chamada como teste e ela fica fora da contagem.
+
+**Exemplo de corpo**
+
+```json
+{
+  "p": "/"
+}
+```
+
+**Resposta `200`**
+
+- `ok` (bool) — Sempre `true`.
+- `counted` (bool) — Se a visita entrou na contagem do dia.
+- `reason` (string, opcional) — Por que não contou, quando `counted` é `false`.
+
+**Exemplo**
+
+```sh
+curl -s -XPOST https://editalmd.com/api/visit -H 'content-type: application/json' -d '{"p":"/"}'
+```
+
+### `GET /api/metrics`
+
+Métricas dos últimos 7 dias para o painel do operador; com o token, inclui os pagamentos.
+
+Sem credencial devolve visitas, uso (entregas de markdown, alertas, vigias) e donos. Com `METRICS_TOKEN` em Bearer acrescenta `payments` — só x402 liquidado em Base mainnet.
+
+- **URL:** `https://editalmd.com/api/metrics`
+- **Auth:** `none` — Público. Agente não se cadastra: quando a rota cobra, cobra por requisição (x402) ou desconta de crédito pré-pago.
+
+**Headers**
+
+- `Authorization` (string) — `Bearer <METRICS_TOKEN>` para incluir o bloco financeiro; token errado é 401.
+
+**Resposta `200`**
+
+Estrutura: `Metricas`.
+
+- `app` (string) — Nome do produto.
+- `today` (string) — Dia de referência (UTC, AAAA-MM-DD).
+- `today_visits` (int) — Visitas contadas hoje pela interface.
+- `today_contacts` (int, opcional) — Mensagens de contato hoje — este produto não tem formulário, fica em zero. Só com `METRICS_TOKEN`: contato não sai sem token.
+- `days` (object[]) — Um registro por dia da janela, com as contagens de cada métrica.
+- `usage` (object) — Uso por recurso: `markdown` (entregas), `alertas` e `vigias` criados, por dia.
+- `accounts` (object) — Totais: `donos` com token emitido.
+- `financeiro` (object, opcional) — Agregado do dia: `hoje_usd`, `hoje_count`, `rede`. Só com `METRICS_TOKEN`: dinheiro não sai sem token; a série completa é `payments`.
+- `payments` (object, opcional) — Resumo financeiro do x402; só com METRICS_TOKEN.
+
+**Erros**
+
+- `401` — Token de operador errado.
+- `503` — Worker sem METRICS_TOKEN configurado.
+
+**Exemplo**
+
+```sh
+curl -s https://editalmd.com/api/metrics -H "Authorization: Bearer $METRICS_TOKEN"
+```
+
+## Prova
+
+### `GET /api/recibo/:id`
+
+Recibo de uma entrega — a prova de o que saiu, quanto custou e com qual hash.
+
+- **URL:** `https://editalmd.com/api/recibo/:id`
+- **Auth:** `none` — Público. Agente não se cadastra: quando a rota cobra, cobra por requisição (x402) ou desconta de crédito pré-pago.
+
+**Parâmetros de caminho**
+
+- `id` (string, obrigatório) — Identificador do recibo (32 hex), do header `x-editalmd-recibo`. Ex.: `0c8f2b…`.
+
+**Resposta `200`**
+
+- `recibo` (Recibo) — O recibo. → ver `Recibo` em **Estruturas**.
+
+**Erros**
+
+- `404` — Recibo não encontrado.
+
+**Exemplo**
+
+```sh
+curl -s https://editalmd.com/api/recibo/0c8f…
+```
+
+## Estruturas
+
+### `Saude`
+
+Saúde do Worker e da origem.
+
+- `ok` (bool) — `true` quando a origem respondeu.
+- `acervo` (Acervo) — Números do acervo. → ver `Acervo` em **Estruturas**.
+- `preco_markdown_usd` (string) — Preço vigente do documento recente.
+- `gratis_acima_de_dias` (int) — Idade a partir da qual o documento é amostra grátis.
+
+### `Busca`
+
+Resultado da busca — sempre grátis.
+
+- `itens` (Compra[]) — Compras que casaram com o termo. → ver `Compra` em **Estruturas**.
+- `preco_markdown_usd` (string) — Preço do documento recente.
+- `gratis_acima_de_dias` (int) — Janela de amostra grátis, em dias.
+- `pago` (bool) — Sempre `false`: buscar não custa.
+
+### `Cnae`
+
+Um CNAE (subclasse) como o produto o vê: descrição oficial, dicionário e fornecedores no SICAF.
+
+- `codigo` (string) — 7 dígitos.
+- `cnae` (string) — Formatado, ex. `1412-6/01`.
+- `descricao` (string, pode ser null) — Descrição oficial (IBGE/Concla).
+- `familia` (string, pode ser null) — Família de termos no dicionário; nulo se ainda não mapeado.
+- `familia_nome` (string, pode ser null) — Nome da família.
+- `termos` (string, pode ser null) — Termos que um alerta por CNPJ usaria para este CNAE.
+- `fornecedores_sicaf` (int, pode ser null) — Fornecedores ativos com este CNAE no SICAF (dados abertos do compras.gov.br).
+- `sicaf_medido_em` (string, pode ser null) — Quando essa contagem foi medida.
+- `ibge_atualizado_em` (string, pode ser null) — Quando a descrição foi atualizada do IBGE.
+
+### `FichaCompra`
+
+Compra + documentos disponíveis + o regime que se aplica a eles.
+
+- `compra` (Compra) — A compra. → ver `Compra` em **Estruturas**.
+- `documentos` (Documento[]) — Documentos com texto extraído. → ver `Documento` em **Estruturas**.
+- `regime` (Regime) — Grátis ou pago, e por quê. → ver `Regime` em **Estruturas**.
+- `prazos` (Prazos) — Proposta e impugnação da compra — o mesmo objeto de `compra.prazos`. → ver `Prazos` em **Estruturas**.
+
+### `Habilitacao`
+
+A lista de habilitação extraída de um edital, por família, com procedência.
+
+- `documento_id` (int) — Documento lido.
+- `compra_id` (int, pode ser null) — Compra do documento.
+- `sha256_texto` (string) — Hash do texto lido — a chave do cache.
+- `modelo` (string, pode ser null) — Modelo que extraiu.
+- `cache` (bool) — `true` quando saiu do cache, sem cobrança.
+- `recibo` (string, pode ser null) — Recibo da entrega paga; nulo no cache.
+- `recibo_url` (string, pode ser null) — Onde consultar o recibo.
+- `aviso` (string) — Lembrete de conferir no edital.
+- `habilitacao` (ListaHabilitacao) — As exigências por família e o que o edital diz de prazo. → ver `ListaHabilitacao` em **Estruturas**.
+
+### `Dono`
+
+O token de dono, mostrado uma única vez, o segredo que assina os webhooks e a franquia.
+
+- `token` (string) — `edm_…` — guarde; não é mostrado de novo nem recuperável.
+- `aviso` (string) — Lembrete de guardar o token e como usá-lo.
+- `webhook_segredo` (string) — `whsec_…` — assina todo POST de webhook (Standard Webhooks). Releia em `GET /api/dono`; rotacione em `POST /api/dono/segredo`.
+- `webhook_assinatura` (string) — Como conferir a assinatura, em uma linha.
+- `franquia` (object) — `alertas_gratis` e `vigias_gratis` incluídos.
+
+### `Alerta`
+
+Um alerta de compra nova: termos + UF, canal de entrega e o cursor do cron.
+
+- `id` (string) — Identificador do alerta.
+- `termos` (string) — Palavras do objeto que o alerta procura (`|` = qualquer uma do grupo).
+- `origem` (OrigemCnae, pode ser null) — De onde veio um alerta criado por CNPJ; nulo no alerta por termos. → ver `OrigemCnae` em **Estruturas**.
+- `uf` (string, pode ser null) — UF restrita, ou nulo para o Brasil.
+- `canal` (string) — `pull`, `webhook` ou `email`.
+- `destino` (string, pode ser null) — URL do webhook, ou e-mail mascarado; nulo no pull.
+- `ativo` (bool) — Se o cron ainda confere este alerta.
+- `pago_ate` (string, pode ser null) — Fim da validade paga; nulo na franquia.
+- `ultimo_check` (string, pode ser null) — Cursor: até quando a origem já foi conferida.
+- `falhas_seguidas` (int) — Entregas seguidas que falharam; em 10 o alerta pausa.
+- `criado_em` (string) — Criação em ISO 8601.
+- `alerta_url` (string) — URL deste alerta.
+- `compras_url` (string) — Onde ler as compras casadas (pull).
+
+### `Empresa`
+
+A ficha resumida da empresa consultada pelo CNPJ, com a leitura do dicionário para cada CNAE.
+
+- `cnpj` (string) — 14 dígitos.
+- `cnpj_formatado` (string) — Com pontuação, para gente.
+- `razao_social` (string, pode ser null) — Razão social na Receita.
+- `nome_fantasia` (string, pode ser null) — O nome comercial, quando difere da razão social.
+- `situacao` (string, pode ser null) — Situação cadastral (Ativa, Baixada…).
+- `uf` (string, pode ser null) — UF da sede.
+- `municipio` (string, pode ser null) — Município da sede.
+- `cnaes` (CnaeDaEmpresa[]) — Principal primeiro, depois os secundários. → ver `CnaeDaEmpresa` em **Estruturas**.
+
+### `FamiliaNaoCriada`
+
+Uma família da empresa que não virou alerta neste pedido.
+
+- `familia` (string) — Identificador da família.
+- `nome` (string) — Nome da família.
+- `termos` (string) — Os termos que o alerta teria.
+- `cnaes` (string[]) — CNAEs da empresa que caem nela.
+- `motivo` (string) — `acima_de_max_familias`.
+
+### `AlertaCompra`
+
+Uma compra que casou com o alerta e o que aconteceu com a entrega.
+
+- `compra_id` (int) — Identificador da compra no acervo.
+- `status` (string) — `pull`, `webhook:ok`, `webhook:falhou`, `email:ok`, `email:falhou`, `email:nao_confirmado`, `email:teto_do_dia` ou `pendente`.
+- `visto_em` (string) — Quando o cron viu a compra.
+- `compra` (Compra, pode ser null) — A compra como estava quando casou, com prazos. → ver `Compra` em **Estruturas**.
+
+### `Vigia`
+
+Uma compra vigiada: canal de aviso, validade e o cursor do cron.
+
+- `id` (string) — Identificador da vigia.
+- `compra_id` (int) — Compra vigiada no acervo.
+- `canal` (string) — `pull`, `webhook` ou `email`.
+- `destino` (string, pode ser null) — URL do webhook; nulo no pull e no e-mail.
+- `ativo` (bool) — Se o cron ainda reconfere; encerra 30 dias após o fim das propostas.
+- `pago_ate` (string, pode ser null) — Fim da validade paga; nulo na franquia.
+- `ultimo_check` (string, pode ser null) — Última reconferência.
+- `criado_em` (string) — Criação em ISO 8601.
+- `vigia_url` (string) — URL desta vigia.
+- `eventos_url` (string) — Onde ler os eventos (pull).
+- `compra_url` (string) — Ficha da compra.
+
+### `Snapshot`
+
+A fotografia da compra que a vigia compara.
+
+- `situacao_id` (int, pode ser null) — Situação: 1 divulgada, 2 revogada, 3 anulada, 4 suspensa.
+- `situacao` (string, pode ser null) — Situação por extenso.
+- `encerramento_proposta` (string, pode ser null) — Fim das propostas visto na fotografia.
+- `valor_estimado` (number, pode ser null) — Valor estimado visto na fotografia.
+- `atualizado_em` (string, pode ser null) — Última atualização conhecida da compra.
+- `documentos` (object[]) — Documentos por sequencial do PNCP: `sequencial`, `id`, `titulo`, `tipo`.
+
+### `Evento`
+
+Uma mudança vista na compra vigiada, ou um aviso de prazo.
+
+- `id` (string) — Identificador do evento.
+- `tipo` (string) — `situacao`, `prazo_adiado`, `valor`, `documento_novo`, `documento_removido`, `prazo_impugnacao` ou `prazo_proposta`.
+- `antes` (string, pode ser null) — Valor anterior; nulo em documento novo e nos avisos de prazo.
+- `depois` (string, pode ser null) — Valor novo; nulo em documento removido.
+- `visto_em` (string) — Quando o cron viu.
+- `entregue_em` (string, pode ser null) — Quando o aviso saiu por webhook ou e-mail; nulo no pull ou em falha.
+
+### `Metricas`
+
+Painel de 7 dias do operador. `payments` só aparece com o token e só em Base mainnet.
+
+- `app` (string) — Nome do produto.
+- `today` (string) — Dia de referência (UTC, AAAA-MM-DD).
+- `today_visits` (int) — Visitas contadas hoje pela interface.
+- `today_contacts` (int, opcional) — Mensagens de contato hoje — este produto não tem formulário, fica em zero. Só com `METRICS_TOKEN`: contato não sai sem token.
+- `days` (object[]) — Um registro por dia da janela, com as contagens de cada métrica.
+- `usage` (object) — Uso por recurso: `markdown` (entregas), `alertas` e `vigias` criados, por dia.
+- `accounts` (object) — Totais: `donos` com token emitido.
+- `financeiro` (object, opcional) — Agregado do dia: `hoje_usd`, `hoje_count`, `rede`. Só com `METRICS_TOKEN`: dinheiro não sai sem token; a série completa é `payments`.
+- `payments` (object, opcional) — Resumo financeiro do x402; só com METRICS_TOKEN.
+
+### `Recibo`
+
+Prova da entrega: o que foi pago, quanto, como e o hash do que saiu.
+
+- `id` (string) — Identificador do recibo (32 hex).
+- `recurso` (string) — Recurso entregue, ex.: `documento/123/markdown`.
+- `documento_id` (int, pode ser null) — Documento entregue.
+- `preco_usd` (string) — Preço cobrado — `$0.00` em amostra.
+- `modo` (string) — `gratuito`, `homolog` ou `onchain`.
+- `sha256_entregue` (string) — SHA-256 do markdown entregue, ou `nao_entregue`.
+- `bytes` (int) — Tamanho do que foi entregue.
+- `criado_em` (string) — Instante da entrega em ISO 8601.
+
+### `Acervo`
+
+Tamanho do acervo lido na origem.
+
+- `compras` (int) — Compras públicas indexadas.
+- `documentos_lidos` (int) — Documentos com texto extraído e disponível.
+
+### `Compra`
+
+Uma compra pública do PNCP, como o acervo a conhece.
+
+- `id` (int) — Identificador interno da compra — é ele que abre a ficha.
+- `pncp` (string, pode ser null) — Número de controle PNCP da compra.
+- `objeto` (string, pode ser null) — Objeto da compra, como publicado.
+- `uf` (string, pode ser null) — Sigla da unidade da federação do órgão.
+- `modalidade` (string, pode ser null) — Modalidade (pregão eletrônico, dispensa…).
+- `situacao` (string, pode ser null) — Situação da compra no PNCP.
+- `orgao` (string, pode ser null) — Razão social do órgão comprador.
+- `unidade` (string, pode ser null) — Unidade administrativa responsável.
+- `valor_estimado` (number, pode ser null) — Valor total estimado em reais.
+- `publicado_em` (string, pode ser null) — Data de publicação no PNCP — é ela que define o regime de cobrança.
+- `informacao_complementar` (string, pode ser null) — Informação complementar publicada.
+- `processo` (string, pode ser null) — Número do processo administrativo.
+- `abertura_proposta` (string, pode ser null) — Início do recebimento de propostas, hora de Brasília.
+- `encerramento_proposta` (string, pode ser null) — Fim do recebimento de propostas, que é a abertura da sessão — a base da impugnação.
+- `amparo_legal` (string, pode ser null) — Amparo legal declarado, ex.: `Lei 14.133/2021, Art. 28, I`.
+- `amparo_legal_codigo` (int, pode ser null) — Código do amparo legal no PNCP.
+- `modalidade_id` (int, pode ser null) — Código da modalidade no PNCP (6 = pregão eletrônico, 8 = dispensa…).
+- `situacao_id` (int, pode ser null) — Código da situação: 1 divulgada, 2 revogada, 3 anulada, 4 suspensa.
+- `municipio` (string, pode ser null) — Município da unidade compradora.
+- `municipio_ibge` (string, pode ser null) — Código IBGE do município.
+- `orgao_cnpj` (string, pode ser null) — CNPJ do órgão, só dígitos.
+- `ano_compra` (int, pode ser null) — Ano da compra na numeração do PNCP.
+- `sequencial_compra` (int, pode ser null) — Sequencial da compra no órgão e ano.
+- `atualizado_em` (string, pode ser null) — Última atualização da compra vista pelo acervo.
+- `prazos` (Prazos) — Proposta e impugnação, calculados pelo Worker. → ver `Prazos` em **Estruturas**.
+- `pncp_url` (string, pode ser null) — Página humana da compra no PNCP.
+- `markdown_url` (string) — Atalho para o markdown do documento.
+- `compra_url` (string) — Ficha completa da compra.
+
+### `Documento`
+
+Um documento da compra que já teve o texto extraído.
+
+- `id` (int) — Identificador do documento — é ele que se pede em markdown.
+- `titulo` (string, pode ser null) — Título do documento no PNCP.
+- `tipo` (string, pode ser null) — Tipo declarado (edital, anexo, ata…).
+- `sequencial` (int, pode ser null) — Sequencial do documento dentro da compra no PNCP.
+- `publicado_em` (string, pode ser null) — Publicação do documento no PNCP.
+- `caracteres` (int, pode ser null) — Tamanho do texto extraído, em caracteres.
+- `paginas` (int, pode ser null) — Páginas do documento original.
+- `motor` (string, pode ser null) — Motor que extraiu (`ocr-api`, `tika`, …).
+- `formato` (string) — `markdown` quando a extração é estruturada; `plain` no resto.
+- `sha256` (string, pode ser null) — Hash do texto extraído na origem.
+- `extraido_em` (string, pode ser null) — Quando a extração rodou.
+- `gratuito` (bool) — Se este documento sai sem pagamento (histórico) ou é cobrado.
+- `preco_usd` (string, pode ser null) — Preço da requisição quando é pago; nulo quando é amostra.
+- `markdown_url` (string) — Onde pedir o markdown deste documento.
+- `disponivel` (bool) — Se o texto está neste acervo agora. `false` nunca é cobrado.
+
+### `Regime`
+
+Por que este documento é grátis ou pago — a regra de recência, explicada.
+
+- `gratuito` (bool) — `true` = amostra sem cobrança.
+- `motivo` (string) — `amostra_historica`, `publicacao_recente` ou `sem_data_de_publicacao`.
+- `idade_dias` (int, pode ser null) — Dias desde a publicação no PNCP.
+
+### `Prazos`
+
+Os relógios da compra: proposta vem do PNCP; impugnação é estimada pela lei, com feriados nacionais.
+
+- `proposta_inicio` (string, pode ser null) — Início do recebimento de propostas.
+- `proposta_ate` (string, pode ser null) — Fim do recebimento de propostas (abertura da sessão).
+- `proposta_aberta` (bool) — Se ainda dá para enviar proposta agora.
+- `impugnacao_ate` (string, pode ser null) — Último dia (AAAA-MM-DD) para impugnar: 3 dias úteis antes da sessão, Lei 14.133 art. 164.
+- `impugnacao_aberta` (bool) — Se hoje, em Brasília, ainda cabe impugnação.
+- `estimado` (bool) — Sempre `true`: feriado municipal não está em base nenhuma.
+- `base_legal` (string, pode ser null) — Regra usada na impugnação.
+- `feriados` (string) — Calendário considerado: `nacionais`.
+- `motivo` (string, pode ser null) — Por que não há impugnação: `sem_data_de_encerramento` ou `amparo_sem_regra`.
+
+### `ListaHabilitacao`
+
+Exigências de habilitação por família, mais as marcações que o edital traz em texto.
+
+- `juridica` (Exigencia[]) — Habilitação jurídica: ato constitutivo, registro, procuração… → ver `Exigencia` em **Estruturas**.
+- `fiscal_social_trabalhista` (Exigencia[]) — Regularidade fiscal, social e trabalhista: CND federal, FGTS, CNDT… → ver `Exigencia` em **Estruturas**.
+- `economico_financeira` (Exigencia[]) — Qualificação econômico-financeira: balanço, certidão de falência, índices. → ver `Exigencia` em **Estruturas**.
+- `tecnica` (Exigencia[]) — Qualificação técnica: atestados, registro em conselho, equipe. → ver `Exigencia` em **Estruturas**.
+- `exclusivo_me_epp` (bool, pode ser null) — Participação exclusiva de ME/EPP, quando o edital diz.
+- `impugnacao_texto` (string, pode ser null) — O que o edital diz sobre o prazo de impugnação, copiado.
+- `proposta_texto` (string, pode ser null) — O que o edital diz sobre a sessão ou o fim das propostas, copiado.
+- `total` (int) — Exigências aceitas, somando as quatro famílias.
+- `descartados` (int) — Itens que o modelo sugeriu sem trecho literal no texto e foram descartados.
+
+### `OrigemCnae`
+
+A empresa e a atividade (CNAE) que geraram um alerta por CNPJ.
+
+- `cnpj` (string) — CNPJ da empresa, 14 dígitos.
+- `familia` (string) — Identificador da família de termos no dicionário.
+- `cnae` (string) — O primeiro CNAE da empresa que acionou a família, 7 dígitos.
+- `descricao` (string, pode ser null) — Descrição oficial (IBGE) desse CNAE.
+- `cnaes` (string[]) — Todos os CNAEs da empresa que caem nesta família.
+
+### `CnaeDaEmpresa`
+
+Um CNAE da empresa e o que o dicionário faz com ele.
+
+- `codigo` (string) — 7 dígitos.
+- `cnae` (string) — Formatado como o IBGE escreve, ex. `1412-6/01`.
+- `descricao` (string, pode ser null) — Descrição oficial.
+- `principal` (bool) — Se é o CNAE principal da empresa.
+- `familia` (string, pode ser null) — Família de termos que este CNAE aciona; nulo fora do dicionário.
+- `termos` (string, pode ser null) — Os termos dessa família; nulo fora do dicionário.
+
+### `Exigencia`
+
+Um documento ou requisito de habilitação e a linha do edital que o exige.
+
+- `exigencia` (string) — Descrição curta, ex.: `Certidão negativa de débitos trabalhistas (CNDT)`.
+- `trecho` (string) — Cópia literal do edital, até 300 caracteres — existe no texto, sempre.
