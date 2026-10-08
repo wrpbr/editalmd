@@ -1,0 +1,16 @@
+{
+  "name": "editalmd",
+  "description": "Brazilian public procurement (PNCP) for agents: search tenders, read deadlines, winning prices and purchase plans, read tender documents as Markdown with qualification requirements and page evidence, and create alerts and watches, through a skill and the remote MCP server.",
+  "owner": {
+    "name": "EditalMD",
+    "email": "contato@editalmd.com",
+    "url": "https://editalmd.com"
+  },
+  "plugins": [
+    {
+      "name": "editalmd",
+      "source": "./",
+      "category": "data"
+    }
+  ]
+}

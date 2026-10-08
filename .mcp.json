@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "editalmd": {
+      "type": "http",
+      "url": "https://editalmd.com/mcp"
+    }
+  }
+}
