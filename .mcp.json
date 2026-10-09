@@ -2,7 +2,7 @@
   "mcpServers": {
     "editalmd": {
       "type": "http",
-      "url": "https://editalmd.com/mcp"
+      "url": "https://editalmd.com/mcp?checkout=site"
     }
   }
 }

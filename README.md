@@ -8,7 +8,7 @@ tender document (edital) as Markdown with its qualification requirements and pag
 alerts for new tenders and watch a purchase for changes. This repository packages the EditalMD skill and the
 connection to its remote MCP server for Claude Code, Codex, Cursor and other agents.
 
-**Site:** https://editalmd.com · **MCP server:** `https://editalmd.com/mcp` · **Prices:** https://editalmd.com/pricing ·
+**Site:** https://editalmd.com · **MCP server:** `https://editalmd.com/mcp?checkout=site` · **Prices:** https://editalmd.com/pricing ·
 **API docs:** https://editalmd.com/developers
 
 ## What your agent can do
@@ -44,12 +44,12 @@ npx skills add wrpbr/editalmd
 Only the MCP server (remote, Streamable HTTP, no key for search and records):
 
 ```bash
-claude mcp add --transport http editalmd https://editalmd.com/mcp   # Claude Code
-codex mcp add editalmd --url https://editalmd.com/mcp               # Codex
+claude mcp add --transport http editalmd 'https://editalmd.com/mcp?checkout=site'   # Claude Code
+codex mcp add editalmd --url 'https://editalmd.com/mcp?checkout=site'               # Codex
 ```
 
 ```json
-{ "mcpServers": { "editalmd": { "url": "https://editalmd.com/mcp" } } }
+{ "mcpServers": { "editalmd": { "url": "https://editalmd.com/mcp?checkout=site" } } }
 ```
 
 The JSON above goes in `.cursor/mcp.json` for Cursor and in the MCP settings of most other clients. In Claude.ai and
@@ -60,8 +60,9 @@ Claude Desktop, open Settings → Connectors → Add custom connector and paste 
 The search, the purchase record, the deadlines, the suppliers, the price summary, the minutes and the purchase plans
 are free and need no key. Five sample documents are free to read. The access to a tender document is paid per page,
 by each buyer, and includes the Markdown, the qualification list and the dossier. The first alert and the first watch
-are free. You can pay with Pix in reais, with a prepaid credit or per request with x402 (USDC). The current prices are
-at https://editalmd.com/pricing.
+are free. You buy plans and prepaid credit on the site, and plans do not renew automatically. The plugin never pays:
+with `checkout=site`, the MCP server has no purchase tool and no payment argument. The agent shows the price and the
+link, and after your purchase it uses your credit token. The current prices are at https://editalmd.com/pricing.
 
 ## What the plugin sends
 
@@ -82,7 +83,7 @@ O EditalMD deixa o agente de IA trabalhar com licitações. Ele busca as compras
 e estado, mostra os prazos e os preços que ganham, e lê o edital em Markdown, com as exigências de habilitação e a
 página de cada uma. Também cria alertas de licitação nova e vigia uma compra. Este repositório traz a skill e a
 conexão com o servidor MCP remoto. Instale com os comandos acima. A busca, a ficha e os prazos são grátis e não pedem
-chave. Os preços estão em https://editalmd.com/pricing.
+chave. A compra é sempre no site, e o plugin nunca paga sozinho. Os preços estão em https://editalmd.com/pricing.
 
 ## Files
 

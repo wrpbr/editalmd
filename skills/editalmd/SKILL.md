@@ -12,7 +12,8 @@ Use it to find tenders, check their deadlines and prices, and read the tender do
 
 ## Connect
 
-- MCP server (preferred): `https://editalmd.com/mcp`. Transport: Streamable HTTP. Search and records need no key.
+- MCP server (preferred): `https://editalmd.com/mcp?checkout=site`. Transport: Streamable HTTP. Search and records
+  need no key. With `checkout=site`, the person buys on the site and the agent never pays.
 - HTTP API: base URL `https://editalmd.com`. Each MCP tool calls one route of this API.
 - If the MCP tools are not available, call the HTTP routes with `curl` or with your fetch tool.
 - Discovery: `GET https://editalmd.com/api/` lists the routes, prices and limits.
@@ -33,7 +34,7 @@ Use it to find tenders, check their deadlines and prices, and read the tender do
 | `exemplos` | `GET /api/exemplos` | Get five processed sample documents. | Free |
 | `documento` | `GET /api/documento/{id}` | Read the title, type and page count of a document. | Free |
 | `estado_geracao` | `GET /api/documento/{id}/geracao` | Read the price quote (`cotacao`) and the progress of a document. | Free |
-| `gerar_markdown` | `POST /api/documento/{id}/geracao` | Buy access to one document, priced per page. Send the `cotacao` that you read. | Paid |
+| `gerar_markdown` | `POST /api/documento/{id}/geracao` | Get access to one document with the person's prepaid credit. Send the `cotacao` that you read. | Per page |
 | `edital_markdown` | `GET /api/documento/{id}/markdown` | Read the document as Markdown with source and hash. Send `acesso_codigo`. | With access |
 | `habilitacao` | `POST /api/documento/{id}/habilitacao` | List the qualification requirements with literal excerpts. | With access |
 | `documento_dossie` | `GET /api/documento/{id}/dossie` | Read items, requirements, deadlines and obligations with page evidence. | With access |
@@ -56,9 +57,10 @@ Use it to find tenders, check their deadlines and prices, and read the tender do
    Do not send the POST again to check the progress.
 5. Alerts and watches need the owner token. Create it once with `criar_dono` and keep it secret.
    Send it as header `Authorization: Bearer edm_…` (HTTP request or MCP connection header).
-6. If a call returns HTTP 402, show the offer and the price to the user. After approval, pay and send the
-   same call again: with a prepaid credit token (`credito_token` argument or header `X-Credito: cred_…`) or
-   with x402 (`X-PAYMENT`, USDC on Base). Keep the same `idempotencia` value when you retry.
+6. Never pay by yourself. If a call returns HTTP 402, show the price and https://editalmd.com/pricing to the
+   user. The person buys on the site. After the purchase, send the same call again with the person's prepaid
+   credit token (`credito_token` argument or header `X-Credito: cred_…`). Keep the same `idempotencia` value
+   when you retry.
 7. Keep tokens (`cred_…`, `edm_…`, `whsec_…`) and access codes secret. Do not write them in files, logs or
    answers unless the user asks you to save them.
 8. The challenge deadline is an estimate: 3 business days before the session, with national holidays only.
@@ -73,13 +75,13 @@ An agent can test the document service without payment: one sponsored premium do
 reads, up to 50 pages each, for a limited time. The guide is https://editalmd.com/avaliacao.md.
 The tools are `avaliacao_cotas`, `avaliacao_premium` and `avaliacao_basico`.
 
-## Pay
+## Buy
 
-- Prepaid credit: `POST https://editalmd.com/api/credito?usd=5` returns 402. After the payment, it returns a
-  `cred_…` token one time only. The same token works in EditalMD, Radar CNPJ and PontoFato.
-- Pix in reais (Brazil): `GET https://editalmd.com/api/credito/pix` gives the packs and the steps.
-- USDC deposit without a browser wallet: `criar_cobranca`, then `estado_cobranca`.
-- People can see prices and pay at https://editalmd.com/pricing.
+- The person buys on the site: https://editalmd.com/pricing shows the plans and the prepaid credit, with the
+  prices. Plans do not renew automatically.
+- `pricing` and `estado_geracao` read the prices and the quote. They do not charge.
+- A prepaid credit gives a `cred_…` token one time only. The same token works in EditalMD, Radar CNPJ and
+  PontoFato.
 
 ## Examples
 
