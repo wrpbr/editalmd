@@ -121,8 +121,8 @@ curl -s 'https://editalmd.com/api/precos?q=papel%20A4'
 
 ## Limits
 
-- Read procurement news at https://editalmd.com/en/noticias/index.md.
-  The free feed is https://editalmd.com/en/noticias/feed.json. Cite the article date and original sources.
+- Read [procurement news](https://editalmd.com/en/noticias/index.md).
+  Use the [free feed](https://editalmd.com/en/noticias/feed.json). Cite the article date and original sources.
 
 - The source is PNCP. A purchase in the data can be closed already: read `prazos` before you act.
 - The Markdown comes from the original files. Automatic review has quality indicators but does not certify
