@@ -9,8 +9,15 @@ compatibility: Needs HTTPS access to editalmd.com. Works with the remote MCP ser
 
 EditalMD collects the public purchases of Brazil from the national procurement portal (PNCP).
 Use it to find tenders, check their deadlines and prices, and read the tender documents as Markdown.
+Original files are free at `GET /api/documento/{id}/original`. PDFs open inline; other formats download.
+Processed content and requirement analysis use the paid document access.
 
 ## Connect
+
+HTML index pages are free for people and crawlers, without an API quota.
+JSON, Markdown, OKF and MCP index data calls have 1,000 free reads per day, IP and product.
+Above that allowance, US$1 buys 1,000 shared reads for 30 days without automatic renewal.
+See `/api-access-guide.md` for evaluation, purchase and retry instructions.
 
 - MCP server (preferred): `https://editalmd.com/mcp?checkout=site`. Transport: Streamable HTTP. Search and records
   need no key. With `checkout=site`, the person buys on the site and the agent never pays.
@@ -23,6 +30,8 @@ Use it to find tenders, check their deadlines and prices, and read the tender do
 
 | Tool | HTTP | Use it to | Cost |
 |---|---|---|---|
+| `consulta_cadastro` | `GET /api/consulta/cadastro/{cnpj}` | Read basic company data without contacts or live analysis. | Free, no allowance consumed |
+| `consulta_endereco` | `GET /api/consulta/endereco/{cep}` | Read up to 20 addresses and 20 companies of a CEP. | Free, no allowance consumed |
 | `buscar_licitacao` | `GET /api/busca` | Find purchases by term (`q`) and state (`uf`). Set `abertas` to keep only open proposals. | Free |
 | `compra` | `GET /api/compra/{id}` | Read a purchase: object, agency, value, dates and its documents. | Free |
 | `prazos` | `GET /api/compra/{id}` | Read the proposal deadline and the estimated last day to challenge (Lei 14.133, art. 164). | Free |
@@ -45,11 +54,13 @@ Use it to find tenders, check their deadlines and prices, and read the tender do
 | `vigiar_compra` | `POST /api/vigias` | Watch one purchase for a new document, suspension, new deadline or new value. | First one free |
 | `vigia_eventos` | `GET /api/vigias/{id}/eventos` | Read the changes of a watched purchase. | Free |
 | `pricing` | `GET /api/pricing` | Read the current prices and free allowances. | Free |
+| `list_plans` | `GET /api/plans` | Read the analysis packages and the account's current plan. | Free |
+| `cancel_plan` | `POST /api/plans/cancel` | Cancel the plan after reviewing its loss and refund conditions. | No new purchase |
 
 ## Rules
 
 1. Start with the free tools: search, purchase record, deadlines, suppliers and prices.
-2. Before you buy a document, call `estado_geracao`. Show the page count and the total of `cotacao` to the user.
+2. Before you buy processed content or analysis, call `estado_geracao`. Show the page count and the total of `cotacao` to the user.
    Call `gerar_markdown` only after the user approves that amount.
 3. Each buyer pays for its own access. `gerar_markdown` returns a private `acesso_codigo`.
    Keep it and send it to the reading tools. With it, you open the document again at no cost.
@@ -78,7 +89,19 @@ The tools are `avaliacao_cotas`, `avaliacao_premium` and `avaliacao_basico`.
 ## Buy
 
 - The person buys on the site: https://editalmd.com/pricing shows the plans and the prepaid credit, with the
-  prices. Plans do not renew automatically.
+  prices. Pay as you go has no monthly fee. Basic includes 1,000 units for R$ 97 (`pro-paginas`).
+  Professional includes 10,000 for R$ 797 (`profissional-paginas`).
+  Enterprise includes 100,000 for R$ 5,997 (`empresarial-paginas`).
+  Each paid plan includes requirements, deadlines, obligations, company-document comparison and processed reading.
+  New plan purchases require server-authorized testing. Card subscriptions renew monthly only after
+  explicit consent. Pix, USDC and balance purchases last 30 days without renewal. Unused units expire
+  at the end of the period. Each document can have up to 200 pages. Original PDFs remain free.
+- The allowance uses 1 unit per page, 25 per price report, 5 per alert and 3 per tender watch.
+  The first alert and watch remain free. Human services and API access packages are separate.
+  `GET /api/plans` returns `account.active.usage` with total, used and remaining units.
+  A signed-in person opens a report with `POST /api/precos/detalhe` and CSRF protection.
+  The server uses allowance before prepaid credit. Reopening the same report in the period uses no more units.
+- The site-checkout MCP connection does not expose `buy_plan`. Send the person to the site to select a plan.
 - `pricing` and `estado_geracao` read the prices and the quote. They do not charge.
 - A prepaid credit gives a `cred_…` token one time only. The same token works in EditalMD, Radar CNPJ and
   PontoFato.
@@ -97,6 +120,9 @@ curl -s 'https://editalmd.com/api/precos?q=papel%20A4'
 ```
 
 ## Limits
+
+- Read procurement news at https://editalmd.com/en/noticias/index.md.
+  The free feed is https://editalmd.com/en/noticias/feed.json. Cite the article date and original sources.
 
 - The source is PNCP. A purchase in the data can be closed already: read `prazos` before you act.
 - The Markdown comes from the original files. Automatic review has quality indicators but does not certify
