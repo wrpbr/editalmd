@@ -60,7 +60,8 @@ Claude Desktop, open Settings → Connectors → Add custom connector and paste 
 The search, the purchase record, the deadlines, the suppliers, the price summary, the minutes and the purchase plans
 are free and need no key. Five sample documents are free to read. The access to a tender document is paid per page,
 by each buyer, and includes the Markdown, the qualification list and the dossier. The first alert and the first watch
-are free. You buy plans and prepaid credit on the site, and plans do not renew automatically. The plugin never pays:
+are free. You buy plans and prepaid credit on the site. Card subscriptions renew monthly after explicit consent;
+Pix, USDC and balance purchases last 30 days without renewal. The plugin never pays:
 with `checkout=site`, the MCP server has no purchase tool and no payment argument. The agent shows the price and the
 link, and after your purchase it uses your credit token. The current prices are at https://editalmd.com/pricing.
 

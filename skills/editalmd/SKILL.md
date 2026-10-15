@@ -14,11 +14,6 @@ Processed content and requirement analysis use the paid document access.
 
 ## Connect
 
-HTML index pages are free for people and crawlers, without an API quota.
-JSON, Markdown, OKF and MCP index data calls have 1,000 free reads per day, IP and product.
-Above that allowance, US$1 buys 1,000 shared reads for 30 days without automatic renewal.
-See `/api-access-guide.md` for evaluation, purchase and retry instructions.
-
 - MCP server (preferred): `https://editalmd.com/mcp?checkout=site`. Transport: Streamable HTTP. Search and records
   need no key. With `checkout=site`, the person buys on the site and the agent never pays.
 - HTTP API: base URL `https://editalmd.com`. Each MCP tool calls one route of this API.
@@ -93,16 +88,18 @@ The tools are `avaliacao_cotas`, `avaliacao_premium` and `avaliacao_basico`.
   Professional includes 10,000 for R$ 797 (`profissional-paginas`).
   Enterprise includes 100,000 for R$ 5,997 (`empresarial-paginas`).
   Each paid plan includes requirements, deadlines, obligations, company-document comparison and processed reading.
-  New plan purchases require server-authorized testing. Card subscriptions renew monthly only after
-  explicit consent. Pix, USDC and balance purchases last 30 days without renewal. Unused units expire
+  Card subscriptions renew monthly only after explicit consent. Pix, USDC and balance purchases last 30 days without renewal. Unused units expire
   at the end of the period. Each document can have up to 200 pages. Original PDFs remain free.
 - The allowance uses 1 unit per page, 25 per price report, 5 per alert and 3 per tender watch.
   The first alert and watch remain free. Human services and API access packages are separate.
   `GET /api/plans` returns `account.active.usage` with total, used and remaining units.
   A signed-in person opens a report with `POST /api/precos/detalhe` and CSRF protection.
   The server uses allowance before prepaid credit. Reopening the same report in the period uses no more units.
-- The site-checkout MCP connection does not expose `buy_plan`. Send the person to the site to select a plan.
 - `pricing` and `estado_geracao` read the prices and the quote. They do not charge.
+- The HTTP API also supports CNPJ and address lookup purchases without an account through x402 v1 or v2.
+  The paying wallet owns the package. Its `mmw_…` credential comes from
+  `/api/auth/wallet/agent/start` and `/api/auth/wallet/agent/token`.
+  The MCP connection above keeps checkout on the site.
 - A prepaid credit gives a `cred_…` token one time only. The same token works in EditalMD, Radar CNPJ and
   PontoFato.
 
@@ -123,6 +120,7 @@ curl -s 'https://editalmd.com/api/precos?q=papel%20A4'
 
 - Read [procurement news](https://editalmd.com/en/noticias/index.md).
   Use the [free feed](https://editalmd.com/en/noticias/feed.json). Cite the article date and original sources.
+
 
 - The source is PNCP. A purchase in the data can be closed already: read `prazos` before you act.
 - The Markdown comes from the original files. Automatic review has quality indicators but does not certify
