@@ -14,8 +14,8 @@ Processed content and requirement analysis use the paid document access.
 
 ## Connect
 
-- MCP server (preferred): `https://editalmd.com/mcp?checkout=site`. Transport: Streamable HTTP. Search and records
-  need no key. With `checkout=site`, the person buys on the site and the agent never pays.
+- MCP server (preferred): `https://editalmd.com/mcp?checkout=site`. Transport: Streamable HTTP. Every MCP tool is
+  free, within its free limits: no payment. Search and records need no key.
 - HTTP API: base URL `https://editalmd.com`. Each MCP tool calls one route of this API.
 - If the MCP tools are not available, call the HTTP routes with `curl` or with your fetch tool.
 - Discovery: `GET https://editalmd.com/api/` lists the routes, prices and limits.
@@ -37,8 +37,7 @@ Processed content and requirement analysis use the paid document access.
 | `planos_de_compras` | `GET /api/planos` | See what agencies plan to buy before the tender opens. | Free |
 | `exemplos` | `GET /api/exemplos` | Get five processed sample documents. | Free |
 | `documento` | `GET /api/documento/{id}` | Read the title, type and page count of a document. | Free |
-| `estado_geracao` | `GET /api/documento/{id}/geracao` | Read the price quote (`cotacao`) and the progress of a document. | Free |
-| `gerar_markdown` | `POST /api/documento/{id}/geracao` | Get access to one document with the person's prepaid credit. Send the `cotacao` that you read. | Per page |
+| `estado_geracao` | `GET /api/documento/{id}/geracao` | Read the progress of a document and its page count. | Free |
 | `edital_markdown` | `GET /api/documento/{id}/markdown` | Read the document as Markdown with source and hash. Send `acesso_codigo`. | With access |
 | `habilitacao` | `POST /api/documento/{id}/habilitacao` | List the qualification requirements with literal excerpts. | With access |
 | `documento_dossie` | `GET /api/documento/{id}/dossie` | Read items, requirements, deadlines and obligations with page evidence. | With access |
@@ -48,25 +47,22 @@ Processed content and requirement analysis use the paid document access.
 | `alertas_compras` | `GET /api/alertas/{id}/compras` | Read the tenders that matched an alert. | Free |
 | `vigiar_compra` | `POST /api/vigias` | Watch one purchase for a new document, suspension, new deadline or new value. | First one free |
 | `vigia_eventos` | `GET /api/vigias/{id}/eventos` | Read the changes of a watched purchase. | Free |
-| `pricing` | `GET /api/pricing` | Read the current prices and free allowances. | Free |
-| `list_plans` | `GET /api/plans` | Read the analysis packages and the account's current plan. | Free |
-| `cancel_plan` | `POST /api/plans/cancel` | Cancel the plan after reviewing its loss and refund conditions. | No new purchase |
 
 ## Rules
 
 1. Start with the free tools: search, purchase record, deadlines, suppliers and prices.
-2. Before you buy processed content or analysis, call `estado_geracao`. Show the page count and the total of `cotacao` to the user.
-   Call `gerar_markdown` only after the user approves that amount.
-3. Each buyer pays for its own access. `gerar_markdown` returns a private `acesso_codigo`.
-   Keep it and send it to the reading tools. With it, you open the document again at no cost.
-4. If `gerar_markdown` returns HTTP 202, wait for the time in `Retry-After`. Then read `estado_geracao` (GET).
-   Do not send the POST again to check the progress.
+2. Processed content needs access: one of the five samples (`exemplos`), the free evaluation below, or an
+   `acesso_codigo` that the person bought on the site or the HTTP API.
+3. An `acesso_codigo` is private. Keep it and send it to the reading tools. With it, you open the document again at
+   no cost.
+4. On the HTTP API, if `POST /api/documento/{id}/geracao` returns HTTP 202, wait for the time in `Retry-After`. Then
+   read `estado_geracao` (GET). Do not send the POST again to check the progress.
 5. Alerts and watches need the owner token. Create it once with `criar_dono` and keep it secret.
    Send it as header `Authorization: Bearer edm_…` (HTTP request or MCP connection header).
-6. Never pay by yourself. If a call returns HTTP 402, show the price and https://editalmd.com/pricing to the
-   user. The person buys on the site. After the purchase, send the same call again with the person's prepaid
-   credit token (`credito_token` argument or header `X-Credito: cred_…`). Keep the same `idempotencia` value
-   when you retry.
+6. If an MCP tool answers `free_limit`, tell the user that the free limit for that action is used up. Never pay by
+   yourself. On the HTTP API, a paid route returns HTTP 402: show the price and https://editalmd.com/pricing to the
+   user. The person buys on the site. Then send the same call again with the person's prepaid credit token in the
+   header `X-Credito: cred_…`, with the same `idempotencia` value.
 7. Keep tokens (`cred_…`, `edm_…`, `whsec_…`) and access codes secret. Do not write them in files, logs or
    answers unless the user asks you to save them.
 8. The challenge deadline is an estimate: 3 business days before the session, with national holidays only.
@@ -81,7 +77,7 @@ An agent can test the document service without payment: one sponsored premium do
 reads, up to 50 pages each, for a limited time. The guide is https://editalmd.com/avaliacao.md.
 The tools are `avaliacao_cotas`, `avaliacao_premium` and `avaliacao_basico`.
 
-## Buy
+## Paid features (site and HTTP API)
 
 - The person buys on the site: https://editalmd.com/pricing shows the plans and the prepaid credit, with the
   prices. Pay as you go has no monthly fee. Basic includes 1,000 units for R$ 97 (`pro-paginas`).
@@ -95,11 +91,11 @@ The tools are `avaliacao_cotas`, `avaliacao_premium` and `avaliacao_basico`.
   `GET /api/plans` returns `account.active.usage` with total, used and remaining units.
   A signed-in person opens a report with `POST /api/precos/detalhe` and CSRF protection.
   The server uses allowance before prepaid credit. Reopening the same report in the period uses no more units.
-- `pricing` and `estado_geracao` read the prices and the quote. They do not charge.
+- `GET /api/pricing` and `estado_geracao` read the prices and the quote. They do not charge.
 - The HTTP API also supports CNPJ and address lookup purchases without an account through x402 v1 or v2.
   The paying wallet owns the package. Its `mmw_…` credential comes from
   `/api/auth/wallet/agent/start` and `/api/auth/wallet/agent/token`.
-  The MCP connection above keeps checkout on the site.
+  The MCP connection above never charges.
 - A prepaid credit gives a `cred_…` token one time only. The same token works in EditalMD, Radar CNPJ and
   PontoFato.
 
