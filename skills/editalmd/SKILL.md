@@ -14,8 +14,9 @@ Processed content and requirement analysis use the paid document access.
 
 ## Connect
 
-- MCP server (preferred): `https://editalmd.com/mcp?checkout=site`. Transport: Streamable HTTP. Every MCP tool is
-  free, within its free limits: no payment. Search and records need no key.
+- Direct MCP: `https://editalmd.com/mcp`. Streamable HTTP, with free and paid API operations.
+- Directory connector: `https://editalmd.com/mcp?checkout=site`. Purchases stay on the site;
+  x402 payments and purchase tools are disabled. Search and records need no key.
 - HTTP API: base URL `https://editalmd.com`. Each MCP tool calls one route of this API.
 - If the MCP tools are not available, call the HTTP routes with `curl` or with your fetch tool.
 - Discovery: `GET https://editalmd.com/api/` lists the routes, prices and limits.
@@ -31,7 +32,7 @@ call the same tools.
 | `consulta_cadastro` | `GET /api/consulta/cadastro/{cnpj}` | Read basic company data without contacts or live analysis. | Free, no allowance consumed |
 | `consulta_endereco` | `GET /api/consulta/endereco/{cep}` | Read up to 20 addresses and 20 companies of a CEP. | Free, no allowance consumed |
 | `lookup_reference` | `GET /api/ref` | Find cities and state codes, activities or legal natures. Use at least two characters in `q`. | Free |
-| `search_tenders` | `GET /api/busca` | Find purchases by term (`q`) and state (`uf`). Set `abertas` to keep only open proposals. | Free |
+| `search_tenders` | `GET /api/busca` | Find purchases by term (`q`) and state (`uf`). Set `abertas` to keep only open proposals; `filtros.disputa` keeps only purchases with bidding. | Free |
 | `get_procurement` | `GET /api/compra/{id}` | Read a purchase: object, agency, value, dates and its documents. | Free |
 | `get_deadlines` | `GET /api/compra/{id}` | Read the proposal deadline and the estimated last day to challenge (Lei 14.133, art. 164). | Free |
 | `who_supplies` | `GET /api/compra/{id}/cnaes` | See which activities (CNAE) usually win purchases like this one. | Free |
@@ -39,6 +40,7 @@ call the same tools.
 | `awarded_prices` | `GET /api/precos` | Get the winning price of a similar item: count, median and range. | Free summary |
 | `framework_agreements` | `GET /api/atas` | Find valid price-registration minutes and see if they accept adhesion. | Free |
 | `procurement_plans` | `GET /api/planos` | See what agencies plan to buy before the tender opens. | Free |
+| `tenders_outside_pncp` | `GET /api/estaduais` | Find tenders that agencies report to the state audit court and that are not on PNCP. | Free |
 | `list_examples` | `GET /api/exemplos` | Get five processed sample documents. | Free |
 | `get_document` | `GET /api/documento/{id}` | Read the title, type and page count of a document. | Free |
 | `generation_status` | `GET /api/documento/{id}/geracao` | Read the progress of a document and its page count. | Free |
@@ -46,7 +48,7 @@ call the same tools.
 | `get_qualification` | `POST /api/documento/{id}/habilitacao` | List the qualification requirements with literal excerpts. | With access |
 | `get_document_dossier` | `GET /api/documento/{id}/dossie` | Read items, requirements, deadlines and obligations with page evidence. | With access |
 | `create_owner` | `POST /api/dono` | Create the owner token `edm_…` for alerts and watches. You see it one time only. | Free |
-| `create_alert` | `POST /api/alertas` | Create an alert for new tenders by terms and state. | First one free |
+| `create_alert` | `POST /api/alertas` | Create an alert for new tenders by terms and state. With `resultados`, it also sends who won and the awarded value. | First one free |
 | `create_alerts_by_cnpj` | `POST /api/alertas` | Create alerts from the activities of a company (CNPJ). | First one free |
 | `list_alert_matches` | `GET /api/alertas/{id}/compras` | Read the tenders that matched an alert. | Free |
 | `watch_procurement` | `POST /api/vigias` | Watch one purchase for a new document, suspension, new deadline or new value. | First one free |
@@ -63,10 +65,13 @@ call the same tools.
    read `generation_status` (GET). Do not send the POST again to check the progress.
 5. Alerts and watches need the owner token. Create it once with `create_owner` and keep it secret.
    Send it as header `Authorization: Bearer edm_…` (HTTP request or MCP connection header).
-6. If an MCP tool answers `free_limit`, tell the user that the free limit for that action is used up. Never pay by
-   yourself. On the HTTP API, a paid route returns HTTP 402: show the price and https://editalmd.com/pricing to the
-   user. The person buys on the site. Then send the same call again with the person's prepaid credit token in the
-   header `X-Credito: cred_…`, with the same `idempotencia` value.
+6. Read `/api/pricing`, `/api/billing` and the operation's quote before spending.
+   Require explicit spending authority and a budget. Direct MCP returns x402 PaymentRequired in
+   `structuredContent` with `isError: true`; retry with `params._meta["x402/payment"]` after authorization.
+   HTTP uses `PAYMENT-SIGNATURE`; prepaid credit uses `X-Credito: cred_…`.
+   Keep the same `idempotencia` on retry. For the directory connector, the person buys at
+   https://editalmd.com/pricing. Use Pix or card only when offered there. Never send card details through MCP.
+   In ChatGPT, use existing rights without offers or purchases in the app.
 7. Keep tokens (`cred_…`, `edm_…`, `whsec_…`) and access codes secret. Do not write them in files, logs or
    answers unless the user asks you to save them.
 8. The challenge deadline is an estimate: 3 business days before the session, with national holidays only.
@@ -97,7 +102,14 @@ An agent can test the document service without payment: one sponsored premium do
 reads, up to 50 pages each, for a limited time. The guide is https://editalmd.com/avaliacao.md.
 The tools are `evaluation_quota`, `evaluation_premium` and `evaluation_basic`.
 
-## Paid features (site and HTTP API)
+## Free and paid services
+
+Search, purchase records, originals and example documents are free.
+Processed documents, reports, additional alerts and watches are paid under their own contracts.
+Read `tools/list` for the tools available in the connected mode.
+`get_api_x402_precos` is the paid per-call price-report summary, without an account or a free allowance.
+It includes the full summary and up to ten items; the complete report is a separate service.
+`get_api_x402_cnpj_by_cnpj` is a paid per-call company check.
 
 - The person buys on the site: https://editalmd.com/pricing shows the plans and the prepaid credit, with the
   prices. Pay as you go has no monthly fee. Basic includes 1,000 units for R$ 97 (`pro-paginas`).
@@ -115,7 +127,9 @@ The tools are `evaluation_quota`, `evaluation_premium` and `evaluation_basic`.
 - The HTTP API also supports CNPJ and address lookup purchases without an account through x402 v1 or v2.
   The paying wallet owns the package. Its `mmw_…` credential comes from
   `/api/auth/wallet/agent/start` and `/api/auth/wallet/agent/token`.
-  The MCP connection above never charges.
+  Before you sign, check that the domain and URI in the message are the site that you called. If not, do not sign.
+  The direct MCP supports authorized payment. The directory connector uses existing credit and rights;
+  the person completes new purchases on the site.
 - A prepaid credit gives a `cred_…` token one time only. The same token works in EditalMD, Radar CNPJ and
   PontoFato.
 
