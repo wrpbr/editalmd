@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
   "name": "com.editalmd/editalmd",
-  "description": "Brazilian public procurement (PNCP): search, deadlines, tender markdown, alerts and watches.",
+  "description": "Read tender requirements with page evidence. Free search and examples; paid processed documents.",
   "version": "1.0.1",
   "repository": { "url": "https://github.com/wrpbr/editalmd", "source": "github" },
   "websiteUrl": "https://editalmd.com",
