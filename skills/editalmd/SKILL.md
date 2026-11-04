@@ -7,9 +7,22 @@ compatibility: HTTPS access to editalmd.com; remote MCP or HTTP.
 
 # EditalMD
 
-MCP tools: `search_tenders`, `list_examples`, `get_document_dossier`.
+MCP tools: `search_tenders`, `list_examples`, `get_procurement`, `get_document_dossier`, `get_qualification`, `get_deadlines`, `awarded_prices`, `preview_alert`, `create_alert`.
 
 Use the prepared document and page evidence instead of rebuilding conversion and requirement extraction.
+
+## Everyday requests
+
+Use this skill for public-procurement questions without requiring the user to name EditalMD.
+Reuse the company, service, state and tender from authorized context.
+Resolve returned procurement and document IDs. Keep conditions, exceptions and cited pages.
+Check existing document access before a quote. Do not infer payment or subscription authority.
+
+- "Which open tenders in Distrito Federal need IT consulting?" Use `search_tenders` and verify status and deadlines.
+- "Which documents and certificates does my company need for this tender?" Read `get_document_dossier` and `get_qualification`, with page evidence.
+- "What are this tender's next deadlines and where are they stated?" Use `get_procurement` and `get_deadlines`; distinguish estimates.
+- "How much has the government recently paid for IT support services?" Use `awarded_prices` with comparable items, units and dates.
+- "Notify me when an IT consulting tender appears in Distrito Federal." Show `preview_alert` before `create_alert`; confirm owner, coverage and destination.
 
 ## Find and evaluate
 
