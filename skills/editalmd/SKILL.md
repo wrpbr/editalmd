@@ -7,7 +7,7 @@ compatibility: HTTPS access to editalmd.com; remote MCP or HTTP.
 
 # EditalMD
 
-MCP tools: `search_tenders`, `list_examples`, `get_procurement`, `get_document_dossier`, `get_qualification`, `get_deadlines`, `awarded_prices`, `preview_alert`, `create_alert`.
+MCP tools: `search_tenders`, `procurement_catalog`, `list_examples`, `get_procurement`, `get_document_dossier`, `get_qualification`, `get_deadlines`, `awarded_prices`, `preview_alert`, `create_alert`.
 
 Use the prepared document and page evidence instead of rebuilding conversion and requirement extraction.
 
@@ -31,9 +31,20 @@ Open a returned purchase and its document IDs. Check the proposal deadline and s
 Search, purchase records and `GET /api/documento/{id}/original` are free.
 Inspect `list_examples` or [document evaluation](https://editalmd.com/avaliacao.md) before buying.
 
+Use `procurement_catalog` to read the public navigation as JSON.
+For an agency or municipality, start with the [agency index](https://api.editalmd.com/licitacoes/en/orgao/index.json)
+or [municipality index](https://api.editalmd.com/licitacoes/en/municipio/index.json).
+Follow the returned links for open tenders, history, recent purchases or suppliers.
+Read the summary date. Supplier totals are recorded awards with no cancellation entry, not payments.
+Open a purchase to check its documents and use the normal access quote.
+
 ## Read the prepared result
 
 For “what does this tender require?”, use `GET /api/documento/{id}/dossie`.
+For requirements, add `?kind=requirement`; for deadlines, add `?kind=deadline`.
+Read `data.facts`, retain page quotes and follow `data.next` with `after` until the requested category is complete.
+Use the returned version's Markdown hash as `v` to avoid joining pages from different versions.
+Request the full export only when the task needs it.
 Processed access includes the dossier and its documented reading operations.
 Check `complete`, coverage, issues and cited pages. Missing extraction is not an absent requirement.
 Read the original when evidence is incomplete.
@@ -54,7 +65,11 @@ Use existing tools or `https://editalmd.com/mcp`; HTTP uses the same API.
 Read [prices](https://editalmd.com/api/pricing), [payment](https://editalmd.com/api/billing) and the operation's quote.
 Reuse existing rights and spending authority. Keep the documented idempotency identifier on retry.
 Direct MCP x402 uses `params._meta["x402/payment"]`; HTTP uses `PAYMENT-SIGNATURE`.
-Credit uses `X-Credito: cred_…`. Keep access and owner credentials secret.
+An authenticated MCP connection already supplies access. Do not request another key or credit code.
+For account API calls, use `X-Api-Key: mmk_…` or `Authorization: Bearer mmo_…` (OAuth).
+On paid operations that accept account balance, that credential also authorizes payment.
+Without an account, prepaid credit uses `Authorization: Bearer cred_…`.
+Keep access and owner credentials secret.
 In `checkout=site`, the person purchases on the site. ChatGPT uses existing rights without sales.
 Follow returned IDs, pagination and `Retry-After`.
 Confirm deadline estimates in the tender; automatic review is not a fidelity certificate.
